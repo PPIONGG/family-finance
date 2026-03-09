@@ -29,6 +29,8 @@ export default async function InstallmentDetailPage({
 
   const progress = (installment.paidInstallments / installment.totalInstallments) * 100
   const platform = PLATFORMS.find((p) => p.value === installment.platform)
+  const nextPayment = installment.payments?.find((p: any) => p.status === 'pending' || p.status === 'overdue')
+  const nextAmount = nextPayment ? Number(nextPayment.amountDue) : Number(installment.monthlyPayment)
 
   return (
     <div className="space-y-6">
@@ -81,8 +83,8 @@ export default async function InstallmentDetailPage({
         </Card>
         <Card>
           <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground">งวดละ</p>
-            <p className="text-lg font-bold text-blue-600">{formatCurrency(Number(installment.monthlyPayment))}</p>
+            <p className="text-xs text-muted-foreground">งวดถัดไป</p>
+            <p className="text-lg font-bold text-blue-600">{formatCurrency(nextAmount)}</p>
           </CardContent>
         </Card>
       </div>
@@ -101,7 +103,7 @@ export default async function InstallmentDetailPage({
       </Card>
 
       {/* Split info */}
-      {installment.splits.length > 0 && (
+      {installment.splits.length > 1 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">การหารค่าผ่อน</CardTitle>

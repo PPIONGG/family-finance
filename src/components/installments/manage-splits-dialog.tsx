@@ -77,7 +77,7 @@ export function ManageSplitsDialog({
       return {
         profileId: m.profileId,
         splitType: 'equal' as SplitType,
-        enabled: existingSplits.length === 0, // enable ทุกคนถ้ายังไม่มี splits
+        enabled: false,
       }
     })
   )

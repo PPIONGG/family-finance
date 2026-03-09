@@ -19,7 +19,7 @@ const navItems = [
   { href: '/settings', label: 'ตั้งค่า', icon: Settings },
 ]
 
-export function Sidebar() {
+export function Sidebar({ children }: { children?: React.ReactNode }) {
   const pathname = usePathname()
 
   return (
@@ -50,6 +50,7 @@ export function Sidebar() {
           )
         })}
       </nav>
+      {children && <div className="pb-4">{children}</div>}
     </aside>
   )
 }

@@ -11,6 +11,7 @@ import { PLATFORMS } from '@/constants/platforms'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DateInput } from '@/components/ui/date-input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -39,6 +40,7 @@ export function InstallmentForm({ members }: InstallmentFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [splitMode, setSplitMode] = useState<'solo' | 'shared'>('solo')
+  const [soloOwner, setSoloOwner] = useState<string>(members[0]?.profileId ?? '')
   const [splits, setSplits] = useState<
     { profileId: string; splitType: SplitType; splitValue?: number }[]
   >(members.map((m) => ({ profileId: m.profileId, splitType: 'equal' })))
@@ -108,7 +110,9 @@ export function InstallmentForm({ members }: InstallmentFormProps) {
       await createInstallment({
         ...data,
         interestType: data.interestType as InterestType,
-        splits: splitMode === 'shared' ? splits : undefined,
+        splits: splitMode === 'shared'
+          ? splits
+          : [{ profileId: soloOwner, splitType: 'equal' as const }],
       })
       toast.success('สร้างรายการผ่อนสำเร็จ')
       router.push('/installments')
@@ -252,9 +256,9 @@ export function InstallmentForm({ members }: InstallmentFormProps) {
                 </div>
                 <div className="space-y-2">
                   <Label>วันชำระงวดแรก</Label>
-                  <Input
-                    type="date"
-                    {...register('shopeeFirstPayDate')}
+                  <DateInput
+                    value={shopeeFirstPayDate}
+                    onChange={(v) => setValue('shopeeFirstPayDate', v)}
                   />
                 </div>
               </div>
@@ -266,8 +270,11 @@ export function InstallmentForm({ members }: InstallmentFormProps) {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>วันที่เริ่มผ่อน</Label>
-              <Input type="date" {...register('startDate')} />
+              <Label>วันที่เริ่มคิดดอกเบี้ย</Label>
+              <DateInput
+                value={startDate}
+                onChange={(v) => setValue('startDate', v)}
+              />
               {errors.startDate && (
                 <p className="text-sm text-red-500">{errors.startDate.message}</p>
               )}
@@ -414,6 +421,26 @@ export function InstallmentForm({ members }: InstallmentFormProps) {
                 ผ่อนร่วม
               </Button>
             </div>
+            {splitMode === 'solo' && (
+              <div className="flex items-center gap-3">
+                <Label className="text-sm whitespace-nowrap">ผู้รับผิดชอบ</Label>
+                <Select value={soloOwner} onValueChange={(v) => v && setSoloOwner(v)}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue>
+                      {members.find((m) => m.profileId === soloOwner)?.nickname ||
+                       members.find((m) => m.profileId === soloOwner)?.displayName}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {members.map((m) => (
+                      <SelectItem key={m.profileId} value={m.profileId}>
+                        {m.nickname || m.displayName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {splitMode === 'shared' && (
               <SplitConfig
                 members={members}

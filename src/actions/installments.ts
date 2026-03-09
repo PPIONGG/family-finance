@@ -239,6 +239,84 @@ export async function payInstallment(paymentId: string) {
   revalidatePath('/dashboard')
 }
 
+export async function payMultipleInstallments(paymentIds: string[]) {
+  const userData = await getCurrentUser()
+  if (!userData?.profile) throw new Error('ไม่พบข้อมูลผู้ใช้')
+  if (paymentIds.length === 0) throw new Error('กรุณาเลือกงวดที่ต้องการจ่าย')
+
+  const payments = await prisma.installmentPayment.findMany({
+    where: { id: { in: paymentIds } },
+    include: { installment: true },
+    orderBy: { installmentNumber: 'asc' },
+  })
+
+  if (payments.length === 0) throw new Error('ไม่พบข้อมูลงวด')
+
+  // Group by installment
+  const byInstallment = new Map<string, typeof payments>()
+  for (const p of payments) {
+    const group = byInstallment.get(p.installmentId) ?? []
+    group.push(p)
+    byInstallment.set(p.installmentId, group)
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updates: any[] = []
+
+  for (const [installmentId, instPayments] of byInstallment) {
+    const installment = instPayments[0].installment
+    const count = instPayments.length
+    const newPaidCount = installment.paidInstallments + count
+    const isCompleted = newPaidCount >= installment.totalInstallments
+
+    // Mark all selected payments as paid
+    for (const p of instPayments) {
+      updates.push(
+        prisma.installmentPayment.update({
+          where: { id: p.id },
+          data: {
+            status: 'paid',
+            amountPaid: p.amountDue,
+            paidDate: new Date(),
+            paidBy: userData.user.id,
+          },
+        })
+      )
+    }
+
+    // Update installment count
+    updates.push(
+      prisma.installment.update({
+        where: { id: installmentId },
+        data: {
+          paidInstallments: newPaidCount,
+          status: isCompleted ? 'completed' : 'active',
+        },
+      })
+    )
+
+    // Set next unpaid installment to pending
+    if (!isCompleted) {
+      const maxNumber = Math.max(...instPayments.map((p) => p.installmentNumber))
+      updates.push(
+        prisma.installmentPayment.updateMany({
+          where: {
+            installmentId,
+            installmentNumber: maxNumber + 1,
+            status: 'upcoming',
+          },
+          data: { status: 'pending' },
+        })
+      )
+    }
+  }
+
+  await prisma.$transaction(updates)
+
+  revalidatePath('/installments')
+  revalidatePath('/dashboard')
+}
+
 export async function updateInstallmentSplits(
   installmentId: string,
   splits: {

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { getInstallments } from '@/actions/installments'
 import { getCurrentUser } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
-import { InstallmentCard } from '@/components/installments/installment-card'
+import { InstallmentList } from '@/components/installments/installment-list'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Plus } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
@@ -15,8 +15,15 @@ export default async function InstallmentsPage() {
   ])
   const userId = userData?.user?.id
 
+  // กรองเฉพาะรายการที่เกี่ยวกับฉัน
+  const myInstallments = installments.filter((inst: any) => {
+    const hasSplits = inst.splits && inst.splits.length > 0
+    if (hasSplits) return inst.splits.some((s: any) => s.profileId === userId)
+    return inst.createdBy === userId
+  })
+
   // คำนวณสรุป
-  const activeInstallments = installments.filter((i: any) => i.status === 'active')
+  const activeInstallments = myInstallments.filter((i: any) => i.status === 'active')
 
   const now = new Date()
   const currentMonth = now.getMonth()
@@ -31,23 +38,34 @@ export default async function InstallmentsPage() {
 
   activeInstallments.forEach((inst: any) => {
     const monthly = Number(inst.monthlyPayment)
-    const remaining = inst.totalInstallments - inst.paidInstallments
 
+    // คำนวณสัดส่วนของฉัน (ratio)
+    // - มี splits + ฉันอยู่ใน splits → ใช้สัดส่วนของฉัน
+    // - มี splits + ฉันไม่อยู่ → ฉันไม่ต้องจ่าย (ratio = 0)
+    // - ไม่มี splits (ผ่อนคนเดียว) → เฉพาะคนสร้างเท่านั้น
+    const hasSplits = inst.splits && inst.splits.length > 0
     const mySplit = inst.splits?.find((s: any) => s.profileId === userId)
-    const myMonthlyAmount = mySplit ? Number(mySplit.amountPerMonth) : monthly
-    myTotal += myMonthlyAmount * remaining
+    const myRatio = hasSplits
+      ? (mySplit ? Number(mySplit.amountPerMonth) / monthly : 0)
+      : (inst.createdBy === userId ? 1 : 0)
 
-    // หางวดของเดือนนี้
+    // คงเหลือ = รวม amountDue ของงวดที่ยังไม่จ่าย
+    const remainingPayments = inst.payments?.filter((p: any) => p.status !== 'paid') ?? []
+    const remainingTotal = remainingPayments.reduce((sum: number, p: any) => sum + Number(p.amountDue), 0)
+    myTotal += remainingTotal * myRatio
+
+    // หางวดของเดือนนี้ — ใช้ amountDue จริง (อาจต่างจาก monthlyPayment ในงวดสุดท้าย)
     const thisMonthPayment = inst.payments?.find((p: any) => {
       const due = new Date(p.dueDate)
       return due.getMonth() === currentMonth && due.getFullYear() === currentYear
     })
     const isPaidThisMonth = thisMonthPayment?.status === 'paid'
+    const thisMonthAmount = thisMonthPayment ? Number(thisMonthPayment.amountDue) * myRatio : 0
 
     if (isPaidThisMonth) {
-      myPaid += myMonthlyAmount
+      myPaid += thisMonthAmount
     } else if (thisMonthPayment) {
-      myUnpaid += myMonthlyAmount
+      myUnpaid += thisMonthAmount
     }
 
     // Group by platform
@@ -63,9 +81,9 @@ export default async function InstallmentsPage() {
       }
     }
     if (isPaidThisMonth) {
-      platformSummary[pKey].paid += myMonthlyAmount
+      platformSummary[pKey].paid += thisMonthAmount
     } else if (thisMonthPayment) {
-      platformSummary[pKey].unpaid += myMonthlyAmount
+      platformSummary[pKey].unpaid += thisMonthAmount
     }
     platformSummary[pKey].count += 1
   })
@@ -85,7 +103,7 @@ export default async function InstallmentsPage() {
         </Link>
       </div>
 
-      {installments.length === 0 ? (
+      {myInstallments.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">ยังไม่มีรายการผ่อนชำระ</p>
           <Link href="/installments/new">
@@ -169,15 +187,12 @@ export default async function InstallmentsPage() {
             </Card>
           )}
 
-          {/* รายการผ่อนทั้งหมด */}
-          <div>
-            <h2 className="text-lg font-semibold mb-4">รายการทั้งหมด</h2>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {installments.map((installment: any) => (
-                <InstallmentCard key={installment.id} installment={installment} currentUserId={userId} />
-              ))}
-            </div>
-          </div>
+          {/* รายการผ่อน */}
+          <InstallmentList
+            myInstallments={myInstallments}
+            allInstallments={installments}
+            currentUserId={userId}
+          />
         </>
       )}
     </div>
