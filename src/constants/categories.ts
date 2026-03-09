@@ -1,0 +1,15 @@
+export const DEFAULT_CATEGORIES = [
+  { name: 'อาหาร', icon: '🍜', color: '#f59e0b' },
+  { name: 'เดินทาง', icon: '🚗', color: '#3b82f6' },
+  { name: 'ที่อยู่อาศัย', icon: '🏠', color: '#8b5cf6' },
+  { name: 'ค่าน้ำ-ค่าไฟ', icon: '💡', color: '#eab308' },
+  { name: 'โทรศัพท์/อินเทอร์เน็ต', icon: '📱', color: '#06b6d4' },
+  { name: 'สุขภาพ', icon: '🏥', color: '#ef4444' },
+  { name: 'ช้อปปิ้ง', icon: '🛒', color: '#ec4899' },
+  { name: 'บันเทิง', icon: '🎬', color: '#a855f7' },
+  { name: 'การศึกษา', icon: '📚', color: '#14b8a6' },
+  { name: 'ผ่อนชำระ', icon: '💳', color: '#6366f1' },
+  { name: 'เงินเดือน', icon: '💰', color: '#22c55e' },
+  { name: 'รายได้อื่น', icon: '💵', color: '#10b981' },
+  { name: 'อื่นๆ', icon: '📦', color: '#64748b' },
+] as const
