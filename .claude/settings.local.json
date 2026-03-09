@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm:*)",
+      "Read(//c/Users/tamma/Desktop/**)",
+      "Bash(npx create-next-app@latest family-finance-app --typescript --tailwind --eslint --app --src-dir --use-npm --no-git --no-import-alias)",
+      "Bash(cp:*)",
+      "Bash(npx shadcn@latest:*)"
+    ]
+  }
+}
