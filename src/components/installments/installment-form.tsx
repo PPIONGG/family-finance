@@ -39,6 +39,8 @@ interface InstallmentFormProps {
 export function InstallmentForm({ members }: InstallmentFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [principalRaw, setPrincipalRaw] = useState('')
+  const [interestRaw, setInterestRaw] = useState('')
   const [splitMode, setSplitMode] = useState<'solo' | 'shared'>('solo')
   const [soloOwner, setSoloOwner] = useState<string>(members[0]?.profileId ?? '')
   const [splits, setSplits] = useState<
@@ -72,7 +74,7 @@ export function InstallmentForm({ members }: InstallmentFormProps) {
   const shopeeTotalInterest = watch('shopeeTotalInterest')
   const shopeeFirstPayDate = watch('shopeeFirstPayDate')
 
-  const isShopee = platform === 'shopee'
+  const isShopee = platform === 'shopee' || platform === 'shopee_cash'
   const hasShopeeData = isShopee && monthlyPayment && shopeeTotalPayment && shopeeTotalInterest != null
 
   // Auto-calculate
@@ -141,12 +143,12 @@ export function InstallmentForm({ members }: InstallmentFormProps) {
               <Label>แพลตฟอร์ม</Label>
               <Select onValueChange={(v) => {
                 setValue('platform', v as string)
-                if (v === 'shopee') setValue('interestType', 'reducing_daily')
+                if (v === 'shopee' || v === 'shopee_cash') setValue('interestType', 'reducing_daily')
               }}>
                 <SelectTrigger>
                   <SelectValue placeholder="เลือกแพลตฟอร์ม" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="min-w-56">
                   {PLATFORMS.map((p) => (
                     <SelectItem key={p.value} value={p.value}>
                       {p.icon} {p.label}
@@ -158,17 +160,24 @@ export function InstallmentForm({ members }: InstallmentFormProps) {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>ราคาสินค้า (บาท)</Label>
               <Input
                 type="text"
                 inputMode="decimal"
                 placeholder="0"
-                value={principalAmount ? principalAmount.toLocaleString('en-US') : ''}
+                value={principalRaw}
                 onChange={(e) => {
-                  const raw = e.target.value.replace(/,/g, '')
-                  const num = parseFloat(raw)
+                  // ลบ comma และอักขระที่ไม่ใช่ตัวเลข/จุด
+                  const raw = e.target.value.replace(/,/g, '').replace(/[^0-9.]/g, '')
+                  const parts = raw.split('.')
+                  const cleaned = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : raw
+                  // format comma เฉพาะส่วนจำนวนเต็ม
+                  const [intPart, decPart] = cleaned.split('.')
+                  const formatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                  setPrincipalRaw(decPart !== undefined ? `${formatted}.${decPart}` : formatted)
+                  const num = parseFloat(cleaned)
                   setValue('principalAmount', isNaN(num) ? 0 : num)
                 }}
               />
@@ -189,6 +198,9 @@ export function InstallmentForm({ members }: InstallmentFormProps) {
               )}
             </div>
 
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>ประเภทดอกเบี้ย</Label>
               <Select
@@ -214,10 +226,18 @@ export function InstallmentForm({ members }: InstallmentFormProps) {
             <div className="space-y-2 max-w-xs">
               <Label>อัตราดอกเบี้ย (% ต่อปี)</Label>
               <Input
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
                 placeholder="0"
-                {...register('interestRate', { valueAsNumber: true })}
+                value={interestRaw}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/[^0-9.]/g, '')
+                  const parts = raw.split('.')
+                  const cleaned = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : raw
+                  setInterestRaw(cleaned)
+                  const num = parseFloat(cleaned)
+                  setValue('interestRate', isNaN(num) ? 0 : num)
+                }}
               />
             </div>
           )}

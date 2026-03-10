@@ -97,9 +97,6 @@ export function ManageSplitsDialog({
   }
 
   const totalAssigned = enabledSplits.reduce((sum, s) => sum + getAmount(s), 0)
-  const totalPercentage = enabledSplits
-    .filter((s) => s.splitType === 'percentage')
-    .reduce((sum, s) => sum + (s.splitValue ?? 0), 0)
   const allEqual = enabledSplits.every((s) => s.splitType === 'equal')
 
   const toggleMember = (profileId: string) => {

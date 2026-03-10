@@ -4,11 +4,12 @@ import { getFamilyMembers } from '@/actions/family'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { StatusBadge } from '@/components/shared/status-badge'
-import { formatCurrency, formatShortDate } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import { PLATFORMS } from '@/constants/platforms'
 import { PaymentTable } from '@/components/installments/payment-table'
 import { ManageSplitsDialog } from '@/components/installments/manage-splits-dialog'
 import { DeleteInstallmentButton } from '@/components/installments/delete-installment-button'
+import { EditInstallmentDialog } from '@/components/installments/edit-installment-dialog'
 import type { InstallmentStatus } from '@/types'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -29,6 +30,7 @@ export default async function InstallmentDetailPage({
 
   const progress = (installment.paidInstallments / installment.totalInstallments) * 100
   const platform = PLATFORMS.find((p) => p.value === installment.platform)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const nextPayment = installment.payments?.find((p: any) => p.status === 'pending' || p.status === 'overdue')
   const nextAmount = nextPayment ? Number(nextPayment.amountDue) : Number(installment.monthlyPayment)
 
@@ -47,6 +49,15 @@ export default async function InstallmentDetailPage({
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <EditInstallmentDialog
+            installment={{
+              id: installment.id,
+              name: installment.name,
+              platform: installment.platform,
+              dueDay: installment.dueDay,
+              notes: installment.notes,
+            }}
+          />
           <ManageSplitsDialog
             installmentId={installment.id}
             monthlyPayment={Number(installment.monthlyPayment)}
@@ -54,6 +65,7 @@ export default async function InstallmentDetailPage({
               profileId: m.profileId,
               displayName: m.profile.displayName,
             }))}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             existingSplits={installment.splits as any}
           />
           <DeleteInstallmentButton id={installment.id} />

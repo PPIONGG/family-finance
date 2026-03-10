@@ -22,6 +22,7 @@ model Profile {
   installmentSplits  InstallmentSplit[]
   createdDebts       Debt[]      @relation("CreatedDebts")
   debtorDebts        Debt[]      @relation("DebtorDebts")
+  subscriptions      Subscription[]
 
   @@map("profiles")
 }
@@ -187,4 +188,27 @@ model Debt {
 
   @@index([familyGroupId])
   @@map("debts")
+}
+
+model Subscription {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId     String    @map("profile_id") @db.Uuid
+  name          String
+  category      String
+  amount        Decimal   @db.Decimal(12, 2)
+  billingCycle  String    @map("billing_cycle")
+  billingDay    Int       @map("billing_day")
+  startDate     DateTime  @map("start_date") @db.Date
+  endDate       DateTime? @map("end_date") @db.Date
+  status        String    @default("active")
+  autoRenew     Boolean   @default(true) @map("auto_renew")
+  notes         String?
+  logoUrl       String?   @map("logo_url")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([status])
+  @@map("subscriptions")
 }

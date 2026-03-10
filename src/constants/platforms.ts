@@ -1,5 +1,6 @@
 export const PLATFORMS = [
-  { value: 'shopee', label: 'Shopee', icon: '🛒' },
+  { value: 'shopee', label: 'Shopee ผ่อนสินค้า', icon: '🛒' },
+  { value: 'shopee_cash', label: 'Shopee กู้เงินสด', icon: '💰' },
   { value: 'uob', label: 'UOB', icon: '🏦' },
   { value: 'ktc', label: 'KTC', icon: '💳' },
   { value: 'kbank', label: 'KBank', icon: '🏦' },

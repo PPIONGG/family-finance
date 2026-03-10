@@ -3,6 +3,8 @@ import { getFamilyGroup } from '@/actions/family'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatDate } from '@/lib/utils'
+import { LeaveGroupButton } from '@/components/settings/leave-group-button'
+import { SetupPrompt } from '@/components/shared/setup-prompt'
 
 export default async function SettingsPage() {
   const [userData, group] = await Promise.all([getCurrentUser(), getFamilyGroup()])
@@ -36,7 +38,19 @@ export default async function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Family Group */}
+      {/* Family Group - ยังไม่มีกลุ่ม */}
+      {!group && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">กลุ่มครอบครัว</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SetupPrompt compact />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Family Group - มีกลุ่มแล้ว */}
       {group && (
         <Card>
           <CardHeader>
@@ -57,8 +71,14 @@ export default async function SettingsPage() {
               แชร์รหัสนี้ให้สมาชิกครอบครัวเพื่อเข้าร่วมกลุ่ม
             </p>
 
-            <div className="border-t pt-4">
-              <h4 className="font-medium mb-3">สมาชิก ({group.members.length} คน)</h4>
+            <div className="border-t pt-4 flex items-center justify-between">
+              <h4 className="font-medium">สมาชิก ({group.members.length} คน)</h4>
+              <LeaveGroupButton
+                isAdmin={userData?.profile?.role === 'admin'}
+                memberCount={group.members.length}
+              />
+            </div>
+            <div className="pt-2">
               <div className="space-y-2">
                 {group.members.map((member) => (
                   <div key={member.id} className="flex items-center justify-between p-2 rounded border">

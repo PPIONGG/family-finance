@@ -31,16 +31,6 @@ export const installmentSchema = z.object({
   notes: z.string().optional(),
 })
 
-export const transactionSchema = z.object({
-  type: z.enum(['income', 'expense']),
-  amount: z.number().positive('จำนวนเงินต้องมากกว่า 0'),
-  description: z.string().min(1, 'กรุณากรอกรายละเอียด'),
-  categoryId: z.string().uuid('กรุณาเลือกหมวดหมู่'),
-  date: z.string().min(1, 'กรุณาเลือกวันที่'),
-  isRecurring: z.boolean().optional(),
-  recurringType: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional(),
-})
-
 export const debtSchema = z.object({
   creditorName: z.string().min(1, 'กรุณากรอกชื่อเจ้าหนี้'),
   debtorId: z.string().uuid('กรุณาเลือกผู้รับผิดชอบ'),
@@ -55,9 +45,20 @@ export const familyGroupSchema = z.object({
   name: z.string().min(1, 'กรุณากรอกชื่อกลุ่ม'),
 })
 
+export const subscriptionSchema = z.object({
+  name: z.string().min(1, 'กรุณากรอกชื่อบริการ'),
+  category: z.string().min(1, 'กรุณาเลือกหมวดหมู่'),
+  amount: z.number().positive('จำนวนเงินต้องมากกว่า 0'),
+  billingCycle: z.enum(['monthly', 'yearly']),
+  billingDay: z.number().int().min(1).max(31, 'วันตัดจ่ายต้องอยู่ระหว่าง 1-31'),
+  startDate: z.string().min(1, 'กรุณาเลือกวันที่เริ่ม'),
+  autoRenew: z.boolean().optional(),
+  notes: z.string().optional(),
+})
+
 export type LoginInput = z.infer<typeof loginSchema>
 export type RegisterInput = z.infer<typeof registerSchema>
 export type InstallmentInput = z.infer<typeof installmentSchema>
-export type TransactionInput = z.infer<typeof transactionSchema>
 export type DebtInput = z.infer<typeof debtSchema>
 export type FamilyGroupInput = z.infer<typeof familyGroupSchema>
+export type SubscriptionInput = z.infer<typeof subscriptionSchema>

@@ -123,10 +123,10 @@ export async function createInstallment(input: CreateInstallmentInput) {
       let amountPerMonth: number
       switch (s.splitType) {
         case 'equal':
-          amountPerMonth = calc.monthlyPayment / input.splits!.length
+          amountPerMonth = finalMonthlyPayment / input.splits!.length
           break
         case 'percentage':
-          amountPerMonth = calc.monthlyPayment * ((s.splitValue ?? 0) / 100)
+          amountPerMonth = finalMonthlyPayment * ((s.splitValue ?? 0) / 100)
           break
         case 'fixed':
           amountPerMonth = s.splitValue ?? 0
@@ -145,13 +145,98 @@ export async function createInstallment(input: CreateInstallmentInput) {
   }
 
   revalidatePath('/installments')
-  revalidatePath('/dashboard')
+  revalidatePath('/installments')
   return serialize(installment)
+}
+
+/**
+ * Sync สถานะ payment ทั้งหมดของ installment ให้ตรงกับวันที่ปัจจุบัน
+ * - upcoming/pending ที่เลยกำหนด → overdue
+ * - งวดถัดไปที่ยังไม่จ่าย → pending
+ * - อัปเดตสถานะ installment ตาม
+ */
+async function syncPaymentStatuses(installmentId: string) {
+  const now = new Date()
+
+  // 1. เปลี่ยน upcoming/pending ที่เลยกำหนดเป็น overdue
+  await prisma.installmentPayment.updateMany({
+    where: {
+      installmentId,
+      status: { in: ['pending', 'upcoming'] },
+      dueDate: { lt: now },
+    },
+    data: { status: 'overdue' },
+  })
+
+  // 2. หางวดถัดไปที่ยังไม่จ่าย (upcoming ที่ dueDate >= now) → set เป็น pending
+  const nextUpcoming = await prisma.installmentPayment.findFirst({
+    where: {
+      installmentId,
+      status: 'upcoming',
+      dueDate: { gte: now },
+    },
+    orderBy: { installmentNumber: 'asc' },
+  })
+
+  if (nextUpcoming) {
+    await prisma.installmentPayment.update({
+      where: { id: nextUpcoming.id },
+      data: { status: 'pending' },
+    })
+  }
+
+  // 3. อัปเดตสถานะ installment
+  const hasOverdue = await prisma.installmentPayment.count({
+    where: { installmentId, status: 'overdue' },
+  })
+
+  const paidCount = await prisma.installmentPayment.count({
+    where: { installmentId, status: 'paid' },
+  })
+
+  const installment = await prisma.installment.findUnique({
+    where: { id: installmentId },
+  })
+
+  if (installment && installment.status !== 'completed') {
+    const isCompleted = paidCount >= installment.totalInstallments
+    let newStatus: string
+    if (isCompleted) {
+      newStatus = 'completed'
+    } else if (hasOverdue > 0) {
+      newStatus = 'overdue'
+    } else {
+      newStatus = 'active'
+    }
+
+    if (installment.status !== newStatus) {
+      await prisma.installment.update({
+        where: { id: installmentId },
+        data: {
+          status: newStatus,
+          paidInstallments: paidCount,
+        },
+      })
+    }
+  }
+}
+
+/** Sync สถานะทุก installment ในกลุ่ม */
+async function syncAllPaymentStatuses(familyGroupId: string) {
+  const installments = await prisma.installment.findMany({
+    where: { familyGroupId, status: { not: 'completed' } },
+    select: { id: true },
+  })
+
+  await Promise.all(installments.map((inst) => syncPaymentStatuses(inst.id)))
 }
 
 export async function getInstallments(status?: string) {
   const group = await getUserFamilyGroup()
   if (!group) return []
+
+  // Sync สถานะให้ตรงกับวันที่ปัจจุบันก่อน query
+  await syncAllPaymentStatuses(group.id)
 
   const result = await prisma.installment.findMany({
     where: {
@@ -171,6 +256,9 @@ export async function getInstallments(status?: string) {
 export async function getInstallmentById(id: string) {
   const group = await getUserFamilyGroup()
   if (!group) return null
+
+  // Sync สถานะให้ตรงกับวันที่ปัจจุบันก่อน query
+  await syncPaymentStatuses(id)
 
   const result = await prisma.installment.findFirst({
     where: { id, familyGroupId: group.id },
@@ -196,47 +284,26 @@ export async function payInstallment(paymentId: string) {
   })
 
   if (!payment) throw new Error('ไม่พบข้อมูลงวด')
-
-  const newPaidCount = payment.installment.paidInstallments + 1
-  const isCompleted = newPaidCount >= payment.installment.totalInstallments
-
-  // รวมทุก update ใน transaction เดียว
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updates: any[] = [
-    prisma.installmentPayment.update({
-      where: { id: paymentId },
-      data: {
-        status: 'paid',
-        amountPaid: payment.amountDue,
-        paidDate: new Date(),
-        paidBy: userData.user.id,
-      },
-    }),
-    prisma.installment.update({
-      where: { id: payment.installmentId },
-      data: {
-        paidInstallments: newPaidCount,
-        status: isCompleted ? 'completed' : 'active',
-      },
-    }),
-  ]
-
-  if (!isCompleted) {
-    updates.push(
-      prisma.installmentPayment.updateMany({
-        where: {
-          installmentId: payment.installmentId,
-          installmentNumber: payment.installmentNumber + 1,
-        },
-        data: { status: 'pending' },
-      })
-    )
+  if (payment.status !== 'pending' && payment.status !== 'overdue') {
+    throw new Error('งวดนี้ไม่สามารถจ่ายได้')
   }
 
-  await prisma.$transaction(updates)
+  // Mark payment as paid
+  await prisma.installmentPayment.update({
+    where: { id: paymentId },
+    data: {
+      status: 'paid',
+      amountPaid: payment.amountDue,
+      paidDate: new Date(),
+      paidBy: userData.user.id,
+    },
+  })
+
+  // Sync statuses (handles paidInstallments count, installment status, next payment promotion)
+  await syncPaymentStatuses(payment.installmentId)
 
   revalidatePath('/installments')
-  revalidatePath('/dashboard')
+  revalidatePath('/installments')
 }
 
 export async function payMultipleInstallments(paymentIds: string[]) {
@@ -252,69 +319,33 @@ export async function payMultipleInstallments(paymentIds: string[]) {
 
   if (payments.length === 0) throw new Error('ไม่พบข้อมูลงวด')
 
-  // Group by installment
-  const byInstallment = new Map<string, typeof payments>()
-  for (const p of payments) {
-    const group = byInstallment.get(p.installmentId) ?? []
-    group.push(p)
-    byInstallment.set(p.installmentId, group)
+  // Validate all payments are payable
+  const invalidPayment = payments.find((p) => p.status !== 'pending' && p.status !== 'overdue' && p.status !== 'upcoming')
+  if (invalidPayment) {
+    throw new Error(`งวดที่ ${invalidPayment.installmentNumber} ไม่สามารถจ่ายได้`)
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const updates: any[] = []
-
-  for (const [installmentId, instPayments] of byInstallment) {
-    const installment = instPayments[0].installment
-    const count = instPayments.length
-    const newPaidCount = installment.paidInstallments + count
-    const isCompleted = newPaidCount >= installment.totalInstallments
-
-    // Mark all selected payments as paid
-    for (const p of instPayments) {
-      updates.push(
-        prisma.installmentPayment.update({
-          where: { id: p.id },
-          data: {
-            status: 'paid',
-            amountPaid: p.amountDue,
-            paidDate: new Date(),
-            paidBy: userData.user.id,
-          },
-        })
-      )
-    }
-
-    // Update installment count
-    updates.push(
-      prisma.installment.update({
-        where: { id: installmentId },
+  // Mark all as paid in a transaction
+  await prisma.$transaction(
+    payments.map((p) =>
+      prisma.installmentPayment.update({
+        where: { id: p.id },
         data: {
-          paidInstallments: newPaidCount,
-          status: isCompleted ? 'completed' : 'active',
+          status: 'paid',
+          amountPaid: p.amountDue,
+          paidDate: new Date(),
+          paidBy: userData.user.id,
         },
       })
     )
+  )
 
-    // Set next unpaid installment to pending
-    if (!isCompleted) {
-      const maxNumber = Math.max(...instPayments.map((p) => p.installmentNumber))
-      updates.push(
-        prisma.installmentPayment.updateMany({
-          where: {
-            installmentId,
-            installmentNumber: maxNumber + 1,
-            status: 'upcoming',
-          },
-          data: { status: 'pending' },
-        })
-      )
-    }
-  }
-
-  await prisma.$transaction(updates)
+  // Sync statuses for each affected installment
+  const installmentIds = [...new Set(payments.map((p) => p.installmentId))]
+  await Promise.all(installmentIds.map((id) => syncPaymentStatuses(id)))
 
   revalidatePath('/installments')
-  revalidatePath('/dashboard')
+  revalidatePath('/installments')
 }
 
 export async function updateInstallmentSplits(
@@ -370,14 +401,40 @@ export async function updateInstallmentSplits(
   revalidatePath('/installments')
 }
 
+export async function updateInstallment(
+  id: string,
+  data: { name?: string; platform?: string; notes?: string; dueDay?: number }
+) {
+  const group = await getUserFamilyGroup()
+  if (!group) throw new Error('ไม่พบกลุ่มครอบครัว')
+
+  const installment = await prisma.installment.findFirst({
+    where: { id, familyGroupId: group.id },
+  })
+  if (!installment) throw new Error('ไม่พบรายการผ่อน')
+
+  await prisma.installment.update({
+    where: { id },
+    data: {
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.platform !== undefined && { platform: data.platform }),
+      ...(data.notes !== undefined && { notes: data.notes || null }),
+      ...(data.dueDay !== undefined && { dueDay: data.dueDay }),
+    },
+  })
+
+  revalidatePath(`/installments/${id}`)
+  revalidatePath('/installments')
+}
+
 export async function deleteInstallment(id: string) {
   const group = await getUserFamilyGroup()
   if (!group) throw new Error('ไม่พบกลุ่มครอบครัว')
 
   await prisma.installment.delete({
-    where: { id },
+    where: { id, familyGroupId: group.id },
   })
 
   revalidatePath('/installments')
-  revalidatePath('/dashboard')
+  revalidatePath('/installments')
 }

@@ -34,7 +34,6 @@ export function generateInviteCode(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase()
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function serialize<T>(data: T): T {
   return JSON.parse(JSON.stringify(data, (_key, value) =>
     typeof value === 'object' && value !== null && 'toNumber' in value

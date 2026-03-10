@@ -6,6 +6,8 @@ export type PaymentStatus = 'pending' | 'paid' | 'overdue' | 'upcoming'
 export type DebtStatus = 'active' | 'paid_off' | 'defaulted'
 export type SplitType = 'equal' | 'percentage' | 'fixed'
 export type RecurringType = 'daily' | 'weekly' | 'monthly' | 'yearly'
+export type SubscriptionStatus = 'active' | 'paused' | 'cancelled'
+export type BillingCycle = 'monthly' | 'yearly'
 
 export interface DashboardSummary {
   totalIncome: number

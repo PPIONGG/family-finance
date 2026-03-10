@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { createFamilyGroup, joinFamilyGroup } from '@/actions/auth'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-export function SetupPrompt() {
+export function SetupPrompt({ compact = false }: { compact?: boolean }) {
   const router = useRouter()
   const [groupName, setGroupName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
@@ -45,8 +45,8 @@ export function SetupPrompt() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <Card className="w-full max-w-md">
+    <div className={compact ? '' : 'flex items-center justify-center min-h-[60vh]'}>
+      <Card className={compact ? 'border-0 shadow-none' : 'w-full max-w-md'}>
         <CardHeader className="text-center">
           <CardTitle className="text-xl">ยินดีต้อนรับ!</CardTitle>
           <CardDescription>

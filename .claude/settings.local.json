@@ -5,7 +5,19 @@
       "Read(//c/Users/tamma/Desktop/**)",
       "Bash(npx create-next-app@latest family-finance-app --typescript --tailwind --eslint --app --src-dir --use-npm --no-git --no-import-alias)",
       "Bash(cp:*)",
-      "Bash(npx shadcn@latest:*)"
+      "Bash(npx shadcn@latest:*)",
+      "Bash(npx prisma:*)",
+      "Bash(npx next:*)",
+      "Bash(ls:*)",
+      "Bash(npx tsc:*)",
+      "Bash(taskkill:*)",
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(node:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git:*)",
+      "Bash(npx vercel:*)"
     ]
   }
 }

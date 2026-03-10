@@ -38,7 +38,7 @@ export async function createDebt(input: CreateDebtInput) {
   })
 
   revalidatePath('/debts')
-  revalidatePath('/dashboard')
+  revalidatePath('/debts')
   return serialize(debt)
 }
 
@@ -61,7 +61,15 @@ export async function getDebts(status?: string) {
 }
 
 export async function payDebt(id: string, amount: number) {
-  const debt = await prisma.debt.findUnique({ where: { id } })
+  const userData = await getCurrentUser()
+  if (!userData?.profile) throw new Error('ไม่พบข้อมูลผู้ใช้')
+
+  const group = await getUserFamilyGroup()
+  if (!group) throw new Error('ไม่พบกลุ่มครอบครัว')
+
+  const debt = await prisma.debt.findFirst({
+    where: { id, familyGroupId: group.id },
+  })
   if (!debt) throw new Error('ไม่พบข้อมูลหนี้สิน')
 
   const newRemaining = Number(debt.remainingAmount) - amount
@@ -76,11 +84,22 @@ export async function payDebt(id: string, amount: number) {
   })
 
   revalidatePath('/debts')
-  revalidatePath('/dashboard')
+  revalidatePath('/debts')
 }
 
 export async function deleteDebt(id: string) {
+  const userData = await getCurrentUser()
+  if (!userData?.profile) throw new Error('ไม่พบข้อมูลผู้ใช้')
+
+  const group = await getUserFamilyGroup()
+  if (!group) throw new Error('ไม่พบกลุ่มครอบครัว')
+
+  const debt = await prisma.debt.findFirst({
+    where: { id, familyGroupId: group.id },
+  })
+  if (!debt) throw new Error('ไม่พบข้อมูลหนี้สิน')
+
   await prisma.debt.delete({ where: { id } })
   revalidatePath('/debts')
-  revalidatePath('/dashboard')
+  revalidatePath('/debts')
 }

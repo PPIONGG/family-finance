@@ -53,7 +53,7 @@ export async function updateSession(request: NextRequest) {
       request.nextUrl.pathname.startsWith('/forgot-password'))
   ) {
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    url.pathname = '/installments'
     return NextResponse.redirect(url)
   }
 
