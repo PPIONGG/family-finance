@@ -10,6 +10,7 @@ import { updateSubscriptionStatus, deleteSubscription } from '@/actions/subscrip
 import { SUBSCRIPTION_CATEGORIES, BILLING_CYCLES } from '@/constants/subscriptions'
 import { toast } from 'sonner'
 import { Trash2, Pause, Play, X } from 'lucide-react'
+import { ServiceIcon } from './service-icon'
 
 interface SubscriptionCardProps {
   subscription: {
@@ -76,7 +77,7 @@ export function SubscriptionCard({ subscription: sub }: SubscriptionCardProps) {
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2">
-              <span className="text-xl">{category?.icon || '📦'}</span>
+              <ServiceIcon name={sub.name} category={sub.category} />
               <div>
                 <CardTitle className="text-base">{sub.name}</CardTitle>
                 <p className="text-xs text-muted-foreground">{category?.label || sub.category}</p>

@@ -6,7 +6,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { subscriptionSchema, type SubscriptionInput } from '@/lib/validations'
 import { createSubscription } from '@/actions/subscriptions'
-import { SUBSCRIPTION_CATEGORIES, BILLING_CYCLES } from '@/constants/subscriptions'
+import { BILLING_CYCLES, POPULAR_SERVICES } from '@/constants/subscriptions'
+import { ServiceIcon } from './service-icon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -31,6 +32,7 @@ export function SubscriptionForm() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [showPresets, setShowPresets] = useState(true)
 
   const {
     register,
@@ -41,10 +43,27 @@ export function SubscriptionForm() {
   } = useForm<SubscriptionInput>({
     resolver: zodResolver(subscriptionSchema),
     defaultValues: {
+      category: 'other',
       billingCycle: 'monthly',
       autoRenew: true,
     },
   })
+
+  const selectPreset = (service: typeof POPULAR_SERVICES[number]) => {
+    setValue('name', service.name)
+    setValue('category', service.category)
+    setValue('amount', service.amount)
+    setValue('billingCycle', service.billingCycle)
+    setShowPresets(false)
+  }
+
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen)
+    if (isOpen) {
+      reset()
+      setShowPresets(true)
+    }
+  }
 
   const onSubmit = async (data: SubscriptionInput) => {
     setLoading(true)
@@ -62,7 +81,7 @@ export function SubscriptionForm() {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger render={<Button />}>
         <Plus className="h-4 w-4 mr-2" />
         เพิ่ม Subscription
@@ -72,28 +91,54 @@ export function SubscriptionForm() {
           <DialogTitle>เพิ่ม Subscription ใหม่</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label>ชื่อบริการ</Label>
-            <Input placeholder="เช่น Netflix, ChatGPT Plus" {...register('name')} />
-            {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label>หมวดหมู่</Label>
-            <Select onValueChange={(v) => setValue('category', v as string)}>
-              <SelectTrigger>
-                <SelectValue placeholder="เลือกหมวดหมู่" />
-              </SelectTrigger>
-              <SelectContent>
-                {SUBSCRIPTION_CATEGORIES.map((cat) => (
-                  <SelectItem key={cat.value} value={cat.value}>
-                    {cat.icon} {cat.label}
-                  </SelectItem>
+          {/* Quick presets */}
+          {showPresets ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>เลือกบริการ</Label>
+                <button
+                  type="button"
+                  className="text-xs text-blue-600 hover:underline"
+                  onClick={() => setShowPresets(false)}
+                >
+                  กรอกเอง
+                </button>
+              </div>
+              <div className="grid grid-cols-4 gap-2 max-h-52 overflow-y-auto pr-1">
+                {POPULAR_SERVICES.map((service) => (
+                  <button
+                    key={service.name}
+                    type="button"
+                    className="flex flex-col items-center gap-1 p-2 rounded-lg border hover:bg-accent transition-colors text-center"
+                    onClick={() => selectPreset(service)}
+                  >
+                    <ServiceIcon name={service.name} size="sm" />
+                    <span className="text-[10px] leading-tight text-muted-foreground line-clamp-2">
+                      {service.name}
+                    </span>
+                  </button>
                 ))}
-              </SelectContent>
-            </Select>
-            {errors.category && <p className="text-sm text-red-500">{errors.category.message}</p>}
-          </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>ชื่อบริการ</Label>
+                <button
+                  type="button"
+                  className="text-xs text-blue-600 hover:underline"
+                  onClick={() => setShowPresets(true)}
+                >
+                  เลือกจากรายการ
+                </button>
+              </div>
+              <Input placeholder="เช่น Netflix, ChatGPT Plus" {...register('name')} />
+              {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
+            </div>
+          )}
+
+          {/* Hidden category field - auto-filled */}
+          <input type="hidden" {...register('category')} />
 
           <div className="grid gap-4 grid-cols-2">
             <div className="space-y-2">
