@@ -10,12 +10,15 @@ export async function getSubscriptions() {
   const userData = await getCurrentUser()
   if (!userData?.profile) return []
 
-  const subscriptions = await prisma.subscription.findMany({
-    where: { profileId: userData.user.id },
-    orderBy: [{ status: 'asc' }, { billingDay: 'asc' }],
-  })
-
-  return serialize(subscriptions)
+  try {
+    const subscriptions = await prisma.subscription.findMany({
+      where: { profileId: userData.user.id },
+      orderBy: [{ status: 'asc' }, { billingDay: 'asc' }],
+    })
+    return serialize(subscriptions)
+  } catch {
+    return []
+  }
 }
 
 export async function createSubscription(data: SubscriptionInput) {
@@ -70,9 +73,14 @@ export async function getSubscriptionSummary() {
   const userData = await getCurrentUser()
   if (!userData?.profile) return { monthlyTotal: 0, yearlyTotal: 0, count: 0 }
 
-  const subscriptions = await prisma.subscription.findMany({
-    where: { profileId: userData.user.id, status: 'active' },
-  })
+  let subscriptions
+  try {
+    subscriptions = await prisma.subscription.findMany({
+      where: { profileId: userData.user.id, status: 'active' },
+    })
+  } catch {
+    return { monthlyTotal: 0, yearlyTotal: 0, count: 0 }
+  }
 
   let monthlyTotal = 0
   for (const sub of subscriptions) {

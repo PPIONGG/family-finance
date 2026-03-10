@@ -223,12 +223,16 @@ async function syncPaymentStatuses(installmentId: string) {
 
 /** Sync สถานะทุก installment ในกลุ่ม */
 async function syncAllPaymentStatuses(familyGroupId: string) {
-  const installments = await prisma.installment.findMany({
-    where: { familyGroupId, status: { not: 'completed' } },
-    select: { id: true },
-  })
+  try {
+    const installments = await prisma.installment.findMany({
+      where: { familyGroupId, status: { not: 'completed' } },
+      select: { id: true },
+    })
 
-  await Promise.all(installments.map((inst) => syncPaymentStatuses(inst.id)))
+    await Promise.all(installments.map((inst) => syncPaymentStatuses(inst.id)))
+  } catch (e) {
+    console.error('Failed to sync payment statuses:', e)
+  }
 }
 
 export async function getInstallments(status?: string) {
@@ -258,7 +262,7 @@ export async function getInstallmentById(id: string) {
   if (!group) return null
 
   // Sync สถานะให้ตรงกับวันที่ปัจจุบันก่อน query
-  await syncPaymentStatuses(id)
+  try { await syncPaymentStatuses(id) } catch (e) { console.error('Failed to sync:', e) }
 
   const result = await prisma.installment.findFirst({
     where: { id, familyGroupId: group.id },
