@@ -28,30 +28,27 @@ export async function updateSession(request: NextRequest) {
   )
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
+
+  const isAuthenticated = user && !error
+
+  const isAuthPage =
+    request.nextUrl.pathname.startsWith('/login') ||
+    request.nextUrl.pathname.startsWith('/register') ||
+    request.nextUrl.pathname.startsWith('/forgot-password') ||
+    request.nextUrl.pathname.startsWith('/auth')
 
   // Protected routes - redirect to login if not authenticated
-  if (
-    !session &&
-    !request.nextUrl.pathname.startsWith('/login') &&
-    !request.nextUrl.pathname.startsWith('/register') &&
-    !request.nextUrl.pathname.startsWith('/forgot-password') &&
-    !request.nextUrl.pathname.startsWith('/auth') &&
-    request.nextUrl.pathname !== '/'
-  ) {
+  if (!isAuthenticated && !isAuthPage && request.nextUrl.pathname !== '/') {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
   // Redirect logged-in users away from auth pages
-  if (
-    session &&
-    (request.nextUrl.pathname.startsWith('/login') ||
-      request.nextUrl.pathname.startsWith('/register') ||
-      request.nextUrl.pathname.startsWith('/forgot-password'))
-  ) {
+  if (isAuthenticated && isAuthPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/installments'
     return NextResponse.redirect(url)
