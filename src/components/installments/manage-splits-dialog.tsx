@@ -137,7 +137,29 @@ export function ManageSplitsDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => {
+      setOpen(v)
+      if (v) {
+        setSplits(
+          members.map((m) => {
+            const existing = existingSplits.find((s) => s.profileId === m.profileId)
+            if (existing) {
+              return {
+                profileId: m.profileId,
+                splitType: existing.splitType as SplitType,
+                splitValue: existing.splitValue ?? undefined,
+                enabled: true,
+              }
+            }
+            return {
+              profileId: m.profileId,
+              splitType: 'equal' as SplitType,
+              enabled: false,
+            }
+          })
+        )
+      }
+    }}>
       <DialogTrigger render={<Button variant="outline" size="sm" />}>
         <Settings2 className="h-4 w-4 mr-2" />
         จัดการการหาร

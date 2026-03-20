@@ -28,11 +28,17 @@ import {
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 
-export function SubscriptionForm() {
+interface Group {
+  id: string
+  name: string
+}
+
+export function SubscriptionForm({ groups = [] }: { groups?: Group[] }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [showPresets, setShowPresets] = useState(true)
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
 
   const {
     register,
@@ -68,7 +74,7 @@ export function SubscriptionForm() {
   const onSubmit = async (data: SubscriptionInput) => {
     setLoading(true)
     try {
-      await createSubscription(data)
+      await createSubscription({ ...data, groupId: selectedGroupId })
       toast.success('เพิ่ม Subscription สำเร็จ')
       reset()
       setOpen(false)
@@ -91,6 +97,27 @@ export function SubscriptionForm() {
           <DialogTitle>เพิ่ม Subscription ใหม่</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Group selector */}
+          {groups.length > 0 && (
+            <div className="space-y-2">
+              <Label>เพิ่มเข้ากลุ่ม (ไม่บังคับ)</Label>
+              <Select
+                value={selectedGroupId ?? '__personal__'}
+                onValueChange={(v) => setSelectedGroupId(v === '__personal__' ? null : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__personal__">ส่วนตัว</SelectItem>
+                  {groups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Quick presets */}
           {showPresets ? (
             <div className="space-y-2">

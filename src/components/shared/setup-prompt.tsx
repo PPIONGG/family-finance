@@ -6,10 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { createFamilyGroup, joinFamilyGroup } from '@/actions/auth'
+import { createGroup, joinGroup } from '@/actions/auth'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-export function SetupPrompt({ compact = false }: { compact?: boolean }) {
+export function SetupPrompt({ compact = false, onSuccess }: { compact?: boolean; onSuccess?: () => void }) {
   const router = useRouter()
   const [groupName, setGroupName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
@@ -21,8 +21,9 @@ export function SetupPrompt({ compact = false }: { compact?: boolean }) {
     setLoading(true)
     setError(null)
     try {
-      await createFamilyGroup(groupName)
+      await createGroup(groupName)
       router.refresh()
+      onSuccess?.()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'เกิดข้อผิดพลาด')
     } finally {
@@ -35,8 +36,9 @@ export function SetupPrompt({ compact = false }: { compact?: boolean }) {
     setLoading(true)
     setError(null)
     try {
-      await joinFamilyGroup(inviteCode)
+      await joinGroup(inviteCode)
       router.refresh()
+      onSuccess?.()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'เกิดข้อผิดพลาด')
     } finally {
@@ -48,9 +50,9 @@ export function SetupPrompt({ compact = false }: { compact?: boolean }) {
     <div className={compact ? '' : 'flex items-center justify-center min-h-[60vh]'}>
       <Card className={compact ? 'border-0 shadow-none' : 'w-full max-w-md'}>
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">ยินดีต้อนรับ!</CardTitle>
+          <CardTitle className="text-xl">สร้างหรือเข้าร่วมกลุ่ม</CardTitle>
           <CardDescription>
-            สร้างกลุ่มครอบครัวใหม่ หรือเข้าร่วมกลุ่มที่มีอยู่
+            สร้างกลุ่มเพื่อแชร์การผ่อนร่วมกับคนอื่น หรือเข้าร่วมกลุ่มที่มีอยู่
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -66,9 +68,9 @@ export function SetupPrompt({ compact = false }: { compact?: boolean }) {
             </TabsList>
             <TabsContent value="create" className="space-y-4 mt-4">
               <div className="space-y-2">
-                <Label>ชื่อกลุ่มครอบครัว</Label>
+                <Label>ชื่อกลุ่ม</Label>
                 <Input
-                  placeholder="เช่น ครอบครัวสุขสันต์"
+                  placeholder="เช่น บ้านหลังใหม่, รถยนต์"
                   value={groupName}
                   onChange={(e) => setGroupName(e.target.value)}
                 />

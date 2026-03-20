@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Family Finance - จัดการการเงินครอบครัว',
-  description: 'ระบบจัดการการเงินครอบครัว ติดตามค่าใช้จ่าย หนี้สิน และการผ่อนชำระ',
+  title: 'PayPlan - ติดตามการผ่อนชำระของคุณ',
+  description: 'ติดตามการผ่อนชำระ หนี้สิน และค่าบริการรายเดือน สร้างกลุ่มเพื่อแชร์ค่าใช้จ่ายร่วมกันได้',
 }
 
 export default function RootLayout({

@@ -13,6 +13,16 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { CreditCard } from 'lucide-react'
 
+function getThaiErrorMessage(error: string): string {
+  const errorMap: Record<string, string> = {
+    'User already registered': 'อีเมลนี้ถูกใช้งานแล้ว',
+    'Password should be at least 6 characters': 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร',
+    'Unable to validate email address: invalid format': 'รูปแบบอีเมลไม่ถูกต้อง',
+    'Signup requires a valid password': 'กรุณากรอกรหัสผ่าน',
+  }
+  return errorMap[error] || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง'
+}
+
 export default function RegisterPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -42,7 +52,7 @@ export default function RegisterPage() {
     })
 
     if (authError) {
-      setError(authError.message)
+      setError(getThaiErrorMessage(authError.message))
       setLoading(false)
       return
     }
@@ -58,7 +68,7 @@ export default function RegisterPage() {
           <CreditCard className="h-10 w-10 text-primary" />
         </div>
         <CardTitle className="text-2xl">สมัครสมาชิก</CardTitle>
-        <CardDescription>สร้างบัญชีเพื่อใช้งาน Family Finance</CardDescription>
+        <CardDescription>สร้างบัญชีเพื่อใช้งาน PayPlan</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

@@ -92,6 +92,7 @@ export function SubscriptionCard({ subscription: sub }: SubscriptionCardProps) {
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-red-600"
                 onClick={() => setShowDelete(true)}
+                aria-label="ลบรายการ"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>

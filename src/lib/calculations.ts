@@ -1,5 +1,14 @@
+// Clamp day to last valid day of month (e.g. day=31 in Feb → 28/29)
+function clampDay(year: number, month: number, day: number): Date {
+  // month is 0-indexed for Date constructor
+  // Set to last day of month if day exceeds month's days
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  return new Date(year, month, Math.min(day, lastDay));
+}
+
 // Flat Rate: ดอกเบี้ยคิดจากเงินต้นตลอด
 export function calculateFlat(principal: number, ratePercent: number, months: number) {
+  if (months <= 0) return { totalInterest: 0, totalAmount: principal, monthlyPayment: 0 }
   const totalInterest = principal * (ratePercent / 100) * (months / 12)
   const totalAmount = principal + totalInterest
   const monthlyPayment = totalAmount / months
@@ -8,6 +17,7 @@ export function calculateFlat(principal: number, ratePercent: number, months: nu
 
 // Reducing Balance (PMT): ดอกเบี้ยลดลงตามเงินต้นที่เหลือ (คิดรายเดือน)
 export function calculateReducing(principal: number, annualRatePercent: number, months: number) {
+  if (months <= 0) return { totalInterest: 0, totalAmount: principal, monthlyPayment: 0 }
   const monthlyRate = annualRatePercent / 100 / 12
   if (monthlyRate === 0) return calculateNoInterest(principal, months)
   const monthlyPayment =
@@ -85,12 +95,12 @@ function generateDailySchedule(
 
   // หางวดแรกที่ห่างจากวันเริ่มอย่างน้อย 25 วัน
   let firstMonth = startDate.getMonth() + 1
-  while (diffDays(startDate, new Date(startDate.getFullYear(), firstMonth, dueDay)) < 25) {
+  while (diffDays(startDate, clampDay(startDate.getFullYear(), firstMonth, dueDay)) < 25) {
     firstMonth++
   }
 
   for (let i = 1; i <= months; i++) {
-    const dueDate = new Date(startDate.getFullYear(), firstMonth + (i - 1), dueDay)
+    const dueDate = clampDay(startDate.getFullYear(), firstMonth + (i - 1), dueDay)
     const days = diffDays(prevDate, dueDate)
     const interest = round2(balance * dailyRate * days)
 
@@ -118,6 +128,7 @@ function generateDailySchedule(
 
 // No Interest
 export function calculateNoInterest(principal: number, months: number) {
+  if (months <= 0) return { totalInterest: 0, totalAmount: principal, monthlyPayment: 0 }
   return { totalInterest: 0, totalAmount: principal, monthlyPayment: round2(principal / months) }
 }
 
@@ -179,13 +190,13 @@ export function generatePaymentSchedule(
 ) {
   // หางวดแรกที่ห่างจากวันเริ่มอย่างน้อย 25 วัน
   let firstMonth = startDate.getMonth() + 1
-  while (diffDays(startDate, new Date(startDate.getFullYear(), firstMonth, dueDay)) < 25) {
+  while (diffDays(startDate, clampDay(startDate.getFullYear(), firstMonth, dueDay)) < 25) {
     firstMonth++
   }
 
   const payments = []
   for (let i = 1; i <= totalInstallments; i++) {
-    const dueDate = new Date(startDate.getFullYear(), firstMonth + (i - 1), dueDay)
+    const dueDate = clampDay(startDate.getFullYear(), firstMonth + (i - 1), dueDay)
     payments.push({
       installment_id: installmentId,
       installment_number: i,
@@ -208,7 +219,7 @@ export function generatePaymentScheduleFromFirstDate(
 ) {
   const payments = []
   for (let i = 1; i <= totalInstallments; i++) {
-    const dueDate = new Date(firstPayDate.getFullYear(), firstPayDate.getMonth() + (i - 1), dueDay)
+    const dueDate = clampDay(firstPayDate.getFullYear(), firstPayDate.getMonth() + (i - 1), dueDay)
     payments.push({
       installment_id: installmentId,
       installment_number: i,

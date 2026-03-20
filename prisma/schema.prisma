@@ -14,70 +14,70 @@ model Profile {
   role        String   @default("member")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  familyMembers      FamilyMember[]
-  createdGroups      FamilyGroup[]
+  groupMembers        GroupMember[]
+  createdGroups       Group[]
   createdTransactions Transaction[]
   createdInstallments Installment[]
   installmentPayments InstallmentPayment[]
-  installmentSplits  InstallmentSplit[]
-  createdDebts       Debt[]      @relation("CreatedDebts")
-  debtorDebts        Debt[]      @relation("DebtorDebts")
-  subscriptions      Subscription[]
+  installmentSplits   InstallmentSplit[]
+  createdDebts        Debt[]
+  subscriptions       Subscription[]
 
   @@map("profiles")
 }
 
-model FamilyGroup {
+model Group {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name       String
   inviteCode String   @unique @map("invite_code")
   createdBy  String   @map("created_by") @db.Uuid
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  creator      Profile        @relation(fields: [createdBy], references: [id])
-  members      FamilyMember[]
-  categories   Category[]
-  transactions Transaction[]
-  installments Installment[]
-  debts        Debt[]
+  creator       Profile        @relation(fields: [createdBy], references: [id])
+  members       GroupMember[]
+  categories    Category[]
+  transactions  Transaction[]
+  installments  Installment[]
+  debts         Debt[]
+  subscriptions Subscription[]
 
   @@map("family_groups")
 }
 
-model FamilyMember {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  familyGroupId String   @map("family_group_id") @db.Uuid
-  profileId     String   @map("profile_id") @db.Uuid
-  nickname      String
-  joinedAt      DateTime @default(now()) @map("joined_at") @db.Timestamptz
+model GroupMember {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId   String   @map("family_group_id") @db.Uuid
+  profileId String   @map("profile_id") @db.Uuid
+  nickname  String
+  joinedAt  DateTime @default(now()) @map("joined_at") @db.Timestamptz
 
-  familyGroup FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  profile     Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  group   Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
-  @@unique([familyGroupId, profileId])
+  @@unique([groupId, profileId])
   @@index([profileId])
   @@map("family_members")
 }
 
 model Category {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  familyGroupId String   @map("family_group_id") @db.Uuid
-  name          String
-  icon          String   @default("📦")
-  color         String   @default("#6366f1")
-  isDefault     Boolean  @default(false) @map("is_default")
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId   String   @map("family_group_id") @db.Uuid
+  name      String
+  icon      String   @default("📦")
+  color     String   @default("#6366f1")
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  familyGroup  FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  group        Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
   transactions Transaction[]
 
-  @@index([familyGroupId])
+  @@index([groupId])
   @@map("categories")
 }
 
 model Transaction {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  familyGroupId String   @map("family_group_id") @db.Uuid
+  groupId       String   @map("family_group_id") @db.Uuid
   categoryId    String   @map("category_id") @db.Uuid
   createdBy     String   @map("created_by") @db.Uuid
   type          String
@@ -89,12 +89,12 @@ model Transaction {
   installmentId String?  @map("installment_id") @db.Uuid
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  familyGroup FamilyGroup  @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  group       Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
   category    Category     @relation(fields: [categoryId], references: [id])
   creator     Profile      @relation(fields: [createdBy], references: [id])
   installment Installment? @relation(fields: [installmentId], references: [id], onDelete: SetNull)
 
-  @@index([familyGroupId])
+  @@index([groupId])
   @@index([categoryId])
   @@index([date])
   @@map("transactions")
@@ -102,7 +102,7 @@ model Transaction {
 
 model Installment {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  familyGroupId    String   @map("family_group_id") @db.Uuid
+  groupId          String?  @map("family_group_id") @db.Uuid
   createdBy        String   @map("created_by") @db.Uuid
   name             String
   platform         String
@@ -120,13 +120,15 @@ model Installment {
   notes            String?
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
 
-  familyGroup FamilyGroup          @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  creator     Profile              @relation(fields: [createdBy], references: [id])
-  payments    InstallmentPayment[]
-  splits      InstallmentSplit[]
+  group    Group?               @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  creator  Profile              @relation(fields: [createdBy], references: [id])
+  payments InstallmentPayment[]
+  splits   InstallmentSplit[]
   transactions Transaction[]
 
-  @@index([familyGroupId])
+  @@index([groupId])
+  @@index([createdBy])
+  @@index([status])
   @@map("installments")
 }
 
@@ -168,47 +170,50 @@ model InstallmentSplit {
 }
 
 model Debt {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  familyGroupId   String   @map("family_group_id") @db.Uuid
-  createdBy       String   @map("created_by") @db.Uuid
-  creditorName    String   @map("creditor_name")
-  debtorId        String   @map("debtor_id") @db.Uuid
-  totalAmount     Decimal  @map("total_amount") @db.Decimal(12, 2)
-  remainingAmount Decimal  @map("remaining_amount") @db.Decimal(12, 2)
-  interestRate    Decimal  @default(0) @map("interest_rate") @db.Decimal(5, 2)
-  minimumPayment  Decimal? @map("minimum_payment") @db.Decimal(12, 2)
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId         String?   @map("family_group_id") @db.Uuid
+  createdBy       String    @map("created_by") @db.Uuid
+  creditorName    String    @map("creditor_name")
+  totalAmount     Decimal   @map("total_amount") @db.Decimal(12, 2)
+  remainingAmount Decimal   @map("remaining_amount") @db.Decimal(12, 2)
+  interestRate    Decimal   @default(0) @map("interest_rate") @db.Decimal(5, 2)
+  minimumPayment  Decimal?  @map("minimum_payment") @db.Decimal(12, 2)
   dueDate         DateTime? @map("due_date") @db.Date
-  status          String   @default("active")
+  status          String    @default("active")
   notes           String?
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
-  familyGroup FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  creator     Profile     @relation("CreatedDebts", fields: [createdBy], references: [id])
-  debtor      Profile     @relation("DebtorDebts", fields: [debtorId], references: [id])
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  creator Profile @relation(fields: [createdBy], references: [id])
 
-  @@index([familyGroupId])
+  @@index([createdBy])
+  @@index([groupId])
+  @@index([status])
   @@map("debts")
 }
 
 model Subscription {
-  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  profileId     String    @map("profile_id") @db.Uuid
-  name          String
-  category      String
-  amount        Decimal   @db.Decimal(12, 2)
-  billingCycle  String    @map("billing_cycle")
-  billingDay    Int       @map("billing_day")
-  startDate     DateTime  @map("start_date") @db.Date
-  endDate       DateTime? @map("end_date") @db.Date
-  status        String    @default("active")
-  autoRenew     Boolean   @default(true) @map("auto_renew")
-  notes         String?
-  logoUrl       String?   @map("logo_url")
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  groupId      String?   @map("family_group_id") @db.Uuid
+  profileId    String    @map("profile_id") @db.Uuid
+  name         String
+  category     String
+  amount       Decimal   @db.Decimal(12, 2)
+  billingCycle String    @map("billing_cycle")
+  billingDay   Int       @map("billing_day")
+  startDate    DateTime  @map("start_date") @db.Date
+  endDate      DateTime? @map("end_date") @db.Date
+  status       String    @default("active")
+  autoRenew    Boolean   @default(true) @map("auto_renew")
+  notes        String?
+  logoUrl      String?   @map("logo_url")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId])
+  @@index([groupId])
   @@index([status])
   @@map("subscriptions")
 }

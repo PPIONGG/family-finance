@@ -25,6 +25,10 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
   })
 
   const onSubmit = async (data: LoginInput) => {
@@ -52,8 +56,8 @@ export default function LoginPage() {
         <div className="flex justify-center mb-2">
           <CreditCard className="h-10 w-10 text-primary" />
         </div>
-        <CardTitle className="text-2xl">Family Finance</CardTitle>
-        <CardDescription>เข้าสู่ระบบจัดการการเงินครอบครัว</CardDescription>
+        <CardTitle className="text-2xl">PayPlan</CardTitle>
+        <CardDescription>เข้าสู่ระบบติดตามการผ่อนชำระของคุณ</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

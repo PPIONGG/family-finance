@@ -15,7 +15,7 @@ interface InstallmentCardProps {
     status: string
     createdBy?: string
     splits?: { profileId: string; amountPerMonth: unknown }[]
-    payments?: { dueDate: string; status: string; amountDue: unknown }[]
+    payments?: { dueDate: string | Date; status: string; amountDue: unknown }[]
   }
   currentUserId?: string
 }

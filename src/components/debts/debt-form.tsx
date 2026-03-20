@@ -26,19 +26,24 @@ import {
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 
-interface DebtFormProps {
-  members: { profileId: string; displayName: string }[]
+interface Group {
+  id: string
+  name: string
 }
 
-export function DebtForm({ members }: DebtFormProps) {
+interface DebtFormProps {
+  groups?: Group[]
+}
+
+export function DebtForm({ groups = [] }: DebtFormProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
 
   const {
     register,
     handleSubmit,
-    setValue,
     reset,
     formState: { errors },
   } = useForm<DebtInput>({
@@ -48,9 +53,10 @@ export function DebtForm({ members }: DebtFormProps) {
   const onSubmit = async (data: DebtInput) => {
     setLoading(true)
     try {
-      await createDebt(data)
+      await createDebt({ ...data, groupId: selectedGroupId })
       toast.success('เพิ่มรายการหนี้สินสำเร็จ')
       reset()
+      setSelectedGroupId(null)
       setOpen(false)
       router.refresh()
     } catch (e) {
@@ -71,27 +77,31 @@ export function DebtForm({ members }: DebtFormProps) {
           <DialogTitle>เพิ่มรายการหนี้สินใหม่</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Group selector */}
+          {groups.length > 0 && (
+            <div className="space-y-2">
+              <Label>เพิ่มเข้ากลุ่ม (ไม่บังคับ)</Label>
+              <Select
+                value={selectedGroupId ?? '__personal__'}
+                onValueChange={(v) => setSelectedGroupId(v === '__personal__' ? null : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__personal__">ส่วนตัว</SelectItem>
+                  {groups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>ชื่อเจ้าหนี้</Label>
             <Input placeholder="เช่น ธนาคาร, บุคคล" {...register('creditorName')} />
             {errors.creditorName && <p className="text-sm text-red-500">{errors.creditorName.message}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label>ผู้รับผิดชอบ</Label>
-            <Select onValueChange={(v) => setValue('debtorId', v as string)}>
-              <SelectTrigger>
-                <SelectValue placeholder="เลือกสมาชิก" />
-              </SelectTrigger>
-              <SelectContent>
-                {members.map((m) => (
-                  <SelectItem key={m.profileId} value={m.profileId}>
-                    {m.displayName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.debtorId && <p className="text-sm text-red-500">{errors.debtorId.message}</p>}
           </div>
 
           <div className="space-y-2">

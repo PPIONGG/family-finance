@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { generateInviteCode } from '@/lib/utils'
 import { DEFAULT_CATEGORIES } from '@/constants/categories'
+import { getActiveGroupId, setActiveGroupId } from '@/lib/active-group'
+import { revalidatePath } from 'next/cache'
 
 export const getCurrentUser = cache(async () => {
   const supabase = await createClient()
@@ -14,10 +16,11 @@ export const getCurrentUser = cache(async () => {
   const profile = await prisma.profile.findUnique({
     where: { id: user.id },
     include: {
-      familyMembers: {
+      groupMembers: {
         include: {
-          familyGroup: true,
+          group: true,
         },
+        orderBy: { joinedAt: 'asc' },
       },
     },
   })
@@ -25,21 +28,51 @@ export const getCurrentUser = cache(async () => {
   return { user, profile }
 })
 
-export async function getUserFamilyGroup() {
+// คืนกลุ่มทั้งหมดที่ user อยู่
+export async function getUserGroups() {
+  const userData = await getCurrentUser()
+  if (!userData?.profile) return []
+  return userData.profile.groupMembers.map((m) => m.group)
+}
+
+// คืน active group จาก cookie (null = personal mode)
+export async function getActiveGroup() {
   const userData = await getCurrentUser()
   if (!userData?.profile) return null
 
-  const member = userData.profile.familyMembers[0]
-  if (!member) return null
+  const groups = userData.profile.groupMembers.map((m) => m.group)
+  if (groups.length === 0) return null
 
-  return member.familyGroup
+  const activeId = await getActiveGroupId()
+  if (!activeId) return null
+
+  return groups.find((g) => g.id === activeId) ?? null
 }
 
-export async function createFamilyGroup(name: string) {
+// server action สำหรับ switch group (null = personal)
+export async function switchGroup(groupId: string | null) {
   const userData = await getCurrentUser()
   if (!userData?.profile) throw new Error('ไม่พบข้อมูลผู้ใช้')
 
-  const group = await prisma.familyGroup.create({
+  if (groupId !== null) {
+    const isMember = userData.profile.groupMembers.some((m) => m.group.id === groupId)
+    if (!isMember) throw new Error('คุณไม่ได้อยู่ในกลุ่มนี้')
+  }
+
+  await setActiveGroupId(groupId)
+  revalidatePath('/', 'layout')
+}
+
+// backward-compat — ใช้ getActiveGroup แทนได้
+export async function getUserGroup() {
+  return getActiveGroup()
+}
+
+export async function createGroup(name: string) {
+  const userData = await getCurrentUser()
+  if (!userData?.profile) throw new Error('ไม่พบข้อมูลผู้ใช้')
+
+  const group = await prisma.group.create({
     data: {
       name,
       inviteCode: generateInviteCode(),
@@ -56,7 +89,7 @@ export async function createFamilyGroup(name: string) {
   // สร้าง default categories
   await prisma.category.createMany({
     data: DEFAULT_CATEGORIES.map((cat) => ({
-      familyGroupId: group.id,
+      groupId: group.id,
       name: cat.name,
       icon: cat.icon,
       color: cat.color,
@@ -64,29 +97,24 @@ export async function createFamilyGroup(name: string) {
     })),
   })
 
-  // อัปเดต role เป็น admin
-  await prisma.profile.update({
-    where: { id: userData.user.id },
-    data: { role: 'admin' },
-  })
-
+  revalidatePath('/', 'layout')
   return group
 }
 
-export async function joinFamilyGroup(inviteCode: string) {
+export async function joinGroup(inviteCode: string) {
   const userData = await getCurrentUser()
   if (!userData?.profile) throw new Error('ไม่พบข้อมูลผู้ใช้')
 
-  const group = await prisma.familyGroup.findUnique({
+  const group = await prisma.group.findUnique({
     where: { inviteCode },
   })
 
-  if (!group) throw new Error('ไม่พบกลุ่มครอบครัว กรุณาตรวจสอบรหัสเชิญ')
+  if (!group) throw new Error('ไม่พบกลุ่ม กรุณาตรวจสอบรหัสเชิญ')
 
-  const existing = await prisma.familyMember.findUnique({
+  const existing = await prisma.groupMember.findUnique({
     where: {
-      familyGroupId_profileId: {
-        familyGroupId: group.id,
+      groupId_profileId: {
+        groupId: group.id,
         profileId: userData.user.id,
       },
     },
@@ -94,13 +122,14 @@ export async function joinFamilyGroup(inviteCode: string) {
 
   if (existing) throw new Error('คุณเป็นสมาชิกกลุ่มนี้แล้ว')
 
-  await prisma.familyMember.create({
+  await prisma.groupMember.create({
     data: {
-      familyGroupId: group.id,
+      groupId: group.id,
       profileId: userData.user.id,
       nickname: userData.profile.displayName,
     },
   })
 
+  revalidatePath('/', 'layout')
   return group
 }

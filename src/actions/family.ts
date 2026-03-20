@@ -1,26 +1,33 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getCurrentUser, getUserFamilyGroup } from './auth'
+import { getCurrentUser } from './auth'
+import { setActiveGroupId } from '@/lib/active-group'
 import { revalidatePath } from 'next/cache'
 
-export async function getFamilyMembers() {
-  const group = await getUserFamilyGroup()
-  if (!group) return []
+export async function getGroupMembers(groupId: string) {
+  const userData = await getCurrentUser()
+  if (!userData?.profile) throw new Error('ไม่พบข้อมูลผู้ใช้')
 
-  return prisma.familyMember.findMany({
-    where: { familyGroupId: group.id },
+  const isMember = userData.profile.groupMembers.some((m) => m.group.id === groupId)
+  if (!isMember) throw new Error('คุณไม่ได้อยู่ในกลุ่มนี้')
+
+  return prisma.groupMember.findMany({
+    where: { groupId },
     include: { profile: true },
     orderBy: { joinedAt: 'asc' },
   })
 }
 
-export async function getFamilyGroup() {
-  const group = await getUserFamilyGroup()
-  if (!group) return null
+export async function getGroup(groupId: string) {
+  const userData = await getCurrentUser()
+  if (!userData?.profile) throw new Error('ไม่พบข้อมูลผู้ใช้')
 
-  return prisma.familyGroup.findUnique({
-    where: { id: group.id },
+  const isMember = userData.profile.groupMembers.some((m) => m.group.id === groupId)
+  if (!isMember) throw new Error('คุณไม่ได้อยู่ในกลุ่มนี้')
+
+  return prisma.group.findUnique({
+    where: { id: groupId },
     include: {
       members: {
         include: { profile: true },
@@ -30,69 +37,92 @@ export async function getFamilyGroup() {
   })
 }
 
-export async function removeFamilyMember(memberId: string) {
+// ดึงทุกกลุ่มที่ user อยู่ พร้อม members
+export async function getAllUserGroups() {
+  const userData = await getCurrentUser()
+  if (!userData?.profile) return []
+
+  const groupIds = userData.profile.groupMembers.map((m) => m.group.id)
+  if (groupIds.length === 0) return []
+
+  return prisma.group.findMany({
+    where: { id: { in: groupIds } },
+    include: {
+      members: {
+        include: { profile: true },
+        orderBy: { joinedAt: 'asc' },
+      },
+    },
+    orderBy: { createdAt: 'asc' },
+  })
+}
+
+export async function removeGroupMember(memberId: string, groupId: string) {
   const userData = await getCurrentUser()
   if (!userData?.profile) throw new Error('ไม่พบข้อมูลผู้ใช้')
 
-  const group = await getUserFamilyGroup()
-  if (!group) throw new Error('ไม่พบกลุ่มครอบครัว')
+  const group = await prisma.group.findUnique({ where: { id: groupId } })
+  if (!group) throw new Error('ไม่พบกลุ่ม')
 
-  // ตรวจสอบว่าเป็น admin
-  if (userData.profile.role !== 'admin') throw new Error('เฉพาะ admin เท่านั้น')
+  if (group.createdBy !== userData.user.id) throw new Error('เฉพาะผู้สร้างกลุ่มเท่านั้น')
 
-  // ตรวจสอบว่าสมาชิกอยู่ในกลุ่มเดียวกัน
-  const member = await prisma.familyMember.findFirst({
-    where: { id: memberId, familyGroupId: group.id },
+  const member = await prisma.groupMember.findFirst({
+    where: { id: memberId, groupId },
   })
   if (!member) throw new Error('ไม่พบสมาชิกในกลุ่ม')
+  if (member.profileId === userData.user.id) throw new Error('ไม่สามารถลบตัวเองได้')
 
-  // ห้ามลบตัวเอง
-  if (member.profileId === userData.profile.id) throw new Error('ไม่สามารถลบตัวเองได้')
+  await prisma.$transaction(async (tx) => {
+    await tx.installmentSplit.deleteMany({
+      where: {
+        profileId: member.profileId,
+        installment: { groupId },
+      },
+    })
 
-  await prisma.familyMember.delete({ where: { id: memberId } })
+    await tx.groupMember.delete({ where: { id: memberId } })
+  })
   revalidatePath('/settings')
 }
 
-export async function leaveFamilyGroup() {
+export async function leaveGroup(groupId: string) {
   const userData = await getCurrentUser()
   if (!userData?.profile) throw new Error('ไม่พบข้อมูลผู้ใช้')
 
-  const group = await getUserFamilyGroup()
-  if (!group) throw new Error('คุณไม่ได้อยู่ในกลุ่มใดๆ')
+  const group = await prisma.group.findUnique({ where: { id: groupId } })
+  if (!group) throw new Error('ไม่พบกลุ่ม')
 
-  // ถ้าเป็น admin ต้องเช็คว่ามีสมาชิกอื่นอยู่ไหม
-  if (userData.profile.role === 'admin') {
-    const memberCount = await prisma.familyMember.count({
-      where: { familyGroupId: group.id },
-    })
+  const isMember = userData.profile.groupMembers.some((m) => m.group.id === groupId)
+  if (!isMember) throw new Error('คุณไม่ได้อยู่ในกลุ่มนี้')
+
+  const isCreator = group.createdBy === userData.user.id
+  if (isCreator) {
+    const memberCount = await prisma.groupMember.count({ where: { groupId } })
     if (memberCount > 1) {
-      throw new Error('ผู้ดูแลไม่สามารถออกจากกลุ่มได้ ถ้ายังมีสมาชิกอยู่ กรุณาลบสมาชิกทั้งหมดก่อน')
+      throw new Error('ผู้สร้างกลุ่มไม่สามารถออกได้ ถ้ายังมีสมาชิกอยู่ กรุณาลบสมาชิกทั้งหมดก่อน')
     }
   }
 
-  // ลบ InstallmentSplit ที่ผูกกับ profileId
-  await prisma.installmentSplit.deleteMany({
-    where: {
-      profileId: userData.user.id,
-      installment: { familyGroupId: group.id },
-    },
-  })
-
-  // ลบ FamilyMember record
-  await prisma.familyMember.delete({
-    where: {
-      familyGroupId_profileId: {
-        familyGroupId: group.id,
+  await prisma.$transaction(async (tx) => {
+    await tx.installmentSplit.deleteMany({
+      where: {
         profileId: userData.user.id,
+        installment: { groupId },
       },
-    },
+    })
+
+    await tx.groupMember.delete({
+      where: {
+        groupId_profileId: {
+          groupId,
+          profileId: userData.user.id,
+        },
+      },
+    })
   })
 
-  // เปลี่ยน role เป็น member
-  await prisma.profile.update({
-    where: { id: userData.user.id },
-    data: { role: 'member' },
-  })
+  // clear active group ถ้าเป็นกลุ่มที่เพิ่งออก
+  await setActiveGroupId(null)
 
   revalidatePath('/settings')
   revalidatePath('/installments')

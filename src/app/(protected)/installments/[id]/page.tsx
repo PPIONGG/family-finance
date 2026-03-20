@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { getInstallmentById } from '@/actions/installments'
-import { getFamilyMembers } from '@/actions/family'
+import { getGroupMembers } from '@/actions/family'
+import { getActiveGroup } from '@/actions/auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -21,9 +22,10 @@ export default async function InstallmentDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  const activeGroup = await getActiveGroup()
   const [installment, members] = await Promise.all([
     getInstallmentById(id),
-    getFamilyMembers(),
+    activeGroup ? getGroupMembers(activeGroup.id) : Promise.resolve([]),
   ])
 
   if (!installment) notFound()

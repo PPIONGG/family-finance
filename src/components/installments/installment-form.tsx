@@ -32,13 +32,21 @@ const INTEREST_TYPE_LABELS: Record<string, string> = {
   reducing_daily: 'ลดต้นลดดอก (รายวัน)',
 }
 
+interface Group {
+  id: string
+  name: string
+}
+
 interface InstallmentFormProps {
+  groups: Group[]
+  activeGroupId: string | null
   members: { profileId: string; displayName: string; nickname: string }[]
 }
 
-export function InstallmentForm({ members }: InstallmentFormProps) {
+export function InstallmentForm({ groups, activeGroupId, members }: InstallmentFormProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(activeGroupId)
   const [principalRaw, setPrincipalRaw] = useState('')
   const [interestRaw, setInterestRaw] = useState('')
   const [splitMode, setSplitMode] = useState<'solo' | 'shared'>('solo')
@@ -111,6 +119,7 @@ export function InstallmentForm({ members }: InstallmentFormProps) {
     try {
       await createInstallment({
         ...data,
+        groupId: selectedGroupId,
         interestType: data.interestType as InterestType,
         splits: splitMode === 'shared'
           ? splits
@@ -127,6 +136,31 @@ export function InstallmentForm({ members }: InstallmentFormProps) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {/* Group selector — แสดงเมื่อ user มีกลุ่ม */}
+      {groups.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">เพิ่มเข้ากลุ่ม</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Select
+              value={selectedGroupId ?? '__personal__'}
+              onValueChange={(v) => setSelectedGroupId(v === '__personal__' ? null : v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="เลือกกลุ่ม" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__personal__">ส่วนตัว (ไม่ผูกกลุ่ม)</SelectItem>
+                {groups.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">ข้อมูลสินค้า</CardTitle>

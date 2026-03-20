@@ -14,20 +14,23 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { LogOut, User, Menu } from 'lucide-react'
 import { MobileNav } from './mobile-nav'
 import { useState } from 'react'
+import type { Group } from '@/types'
 
 interface HeaderProps {
   user: {
     email?: string
     displayName?: string
   }
+  groups: Group[]
+  activeGroupId: string | null
 }
 
-export function Header({ user }: HeaderProps) {
+export function Header({ user, groups, activeGroupId }: HeaderProps) {
   const router = useRouter()
-  const supabase = createClient()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const handleLogout = async () => {
+    const supabase = createClient()
     await supabase.auth.signOut()
     router.push('/login')
     router.refresh()
@@ -48,6 +51,7 @@ export function Header({ user }: HeaderProps) {
           size="icon"
           className="md:hidden"
           onClick={() => setMobileOpen(true)}
+          aria-label="เปิดเมนู"
         >
           <Menu className="h-5 w-5" />
         </Button>
@@ -56,12 +60,12 @@ export function Header({ user }: HeaderProps) {
 
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button variant="ghost" className="flex items-center gap-2" />}>
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-              </Avatar>
-              <span className="hidden sm:inline text-sm">
-                {user.displayName || user.email}
-              </span>
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+            </Avatar>
+            <span className="hidden sm:inline text-sm">
+              {user.displayName || user.email}
+            </span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem onClick={() => router.push('/settings')}>
@@ -77,7 +81,12 @@ export function Header({ user }: HeaderProps) {
         </DropdownMenu>
       </header>
 
-      <MobileNav open={mobileOpen} onClose={() => setMobileOpen(false)} />
+      <MobileNav
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        groups={groups}
+        activeGroupId={activeGroupId}
+      />
     </>
   )
 }

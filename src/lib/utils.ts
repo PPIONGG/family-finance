@@ -31,7 +31,10 @@ export function formatShortDate(date: Date | string): string {
 }
 
 export function generateInviteCode(): string {
-  return Math.random().toString(36).substring(2, 8).toUpperCase()
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const array = new Uint8Array(8);
+  crypto.getRandomValues(array);
+  return Array.from(array, (byte) => chars[byte % chars.length]).join('');
 }
 
 export function serialize<T>(data: T): T {

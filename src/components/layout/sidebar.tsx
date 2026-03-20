@@ -1,31 +1,29 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { useState, useTransition } from 'react'
 import { cn } from '@/lib/utils'
-import {
-  CreditCard,
-  Settings,
-  Tv,
-  Landmark,
-  User,
-  Users,
-} from 'lucide-react'
+import { CreditCard, Settings, Tv, Landmark, Users, Plus, User, Check } from 'lucide-react'
+import { switchGroup } from '@/actions/auth'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { SetupPrompt } from '@/components/shared/setup-prompt'
+import type { Group } from '@/types'
 
-const personalItems = [
-  { href: '/subscriptions', label: 'สมัครสมาชิก', icon: Tv },
-  { href: '/debts', label: 'หนี้สิน', icon: Landmark },
-]
-
-const familyItems = [
+const navItems = [
   { href: '/installments', label: 'การผ่อนชำระ', icon: CreditCard },
-]
-
-const otherItems = [
+  { href: '/debts', label: 'หนี้สิน', icon: Landmark },
+  { href: '/subscriptions', label: 'สมัครสมาชิก', icon: Tv },
   { href: '/settings', label: 'ตั้งค่า', icon: Settings },
 ]
 
-function NavLink({ item, pathname }: { item: { href: string; label: string; icon: React.ComponentType<{ className?: string }> }; pathname: string }) {
+function NavLink({
+  item,
+  pathname,
+}: {
+  item: { href: string; label: string; icon: React.ComponentType<{ className?: string }> }
+  pathname: string
+}) {
   const isActive = pathname.startsWith(item.href)
   return (
     <Link
@@ -43,16 +41,93 @@ function NavLink({ item, pathname }: { item: { href: string; label: string; icon
   )
 }
 
-function SectionLabel({ icon: Icon, label }: { icon: React.ComponentType<{ className?: string }>; label: string }) {
+function GroupList({
+  groups,
+  activeGroupId,
+}: {
+  groups: Group[]
+  activeGroupId: string | null
+}) {
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  const handleSwitch = (groupId: string | null) => {
+    startTransition(async () => {
+      await switchGroup(groupId)
+      router.refresh()
+    })
+  }
+
+  const isPersonal = !activeGroupId
+
   return (
-    <div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-      <Icon className="h-3.5 w-3.5" />
-      {label}
+    <div>
+      <p className="text-xs font-medium text-muted-foreground px-3 mb-1">บัญชี</p>
+      <div className="space-y-0.5">
+        {/* ส่วนตัว */}
+        <button
+          onClick={() => handleSwitch(null)}
+          disabled={isPending}
+          className={cn(
+            'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left',
+            isPersonal
+              ? 'bg-primary/10 text-primary'
+              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+          )}
+        >
+          <User className="h-4 w-4 shrink-0" />
+          <span className="flex-1">ส่วนตัว</span>
+          {isPersonal && <Check className="h-3.5 w-3.5 shrink-0" />}
+        </button>
+
+        {/* กลุ่ม */}
+        {groups.map((group) => (
+          <button
+            key={group.id}
+            onClick={() => handleSwitch(group.id)}
+            disabled={isPending}
+            className={cn(
+              'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left',
+              activeGroupId === group.id
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            )}
+          >
+            <Users className="h-4 w-4 shrink-0" />
+            <span className="truncate flex-1">{group.name}</span>
+            {activeGroupId === group.id && <Check className="h-3.5 w-3.5 shrink-0" />}
+          </button>
+        ))}
+
+        <button
+          onClick={() => setDialogOpen(true)}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+        >
+          <Plus className="h-4 w-4 shrink-0" />
+          สร้าง / เข้าร่วมกลุ่ม
+        </button>
+      </div>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>จัดการกลุ่ม</DialogTitle>
+          </DialogHeader>
+          <SetupPrompt compact onSuccess={() => setDialogOpen(false)} />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
-export function Sidebar({ children }: { children?: React.ReactNode }) {
+export function Sidebar({
+  groups,
+  activeGroupId,
+}: {
+  groups: Group[]
+  activeGroupId: string | null
+}) {
   const pathname = usePathname()
 
   return (
@@ -60,32 +135,20 @@ export function Sidebar({ children }: { children?: React.ReactNode }) {
       <div className="flex items-center h-16 px-6 border-b">
         <Link href="/installments" className="flex items-center gap-2">
           <CreditCard className="h-6 w-6 text-primary" />
-          <span className="font-bold text-lg">Family Finance</span>
+          <span className="font-bold text-lg">PayPlan</span>
         </Link>
       </div>
+
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {/* ส่วนตัว */}
-        <SectionLabel icon={User} label="ส่วนตัว" />
-        {personalItems.map((item) => (
+        {navItems.map((item) => (
           <NavLink key={item.href} item={item} pathname={pathname} />
         ))}
 
-        {/* ครอบครัว */}
-        <div className="pt-4">
-          <SectionLabel icon={Users} label="ครอบครัว" />
-          {familyItems.map((item) => (
-            <NavLink key={item.href} item={item} pathname={pathname} />
-          ))}
-        </div>
-
-        {/* ตั้งค่า */}
-        <div className="pt-4">
-          {otherItems.map((item) => (
-            <NavLink key={item.href} item={item} pathname={pathname} />
-          ))}
+        {/* Groups section — ต่อจาก nav */}
+        <div className="pt-3">
+          <GroupList groups={groups} activeGroupId={activeGroupId} />
         </div>
       </nav>
-      {children && <div className="pb-4">{children}</div>}
     </aside>
   )
 }

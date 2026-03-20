@@ -1,4 +1,5 @@
 import { getSubscriptions, getSubscriptionSummary } from '@/actions/subscriptions'
+import { getUserGroups } from '@/actions/auth'
 import { SubscriptionForm } from '@/components/subscriptions/subscription-form'
 import { SubscriptionCard } from '@/components/subscriptions/subscription-card'
 import { Card, CardContent } from '@/components/ui/card'
@@ -7,16 +8,18 @@ import { SUBSCRIPTION_CATEGORIES } from '@/constants/subscriptions'
 import { Tv, TrendingDown } from 'lucide-react'
 
 export default async function SubscriptionsPage() {
-  const [subscriptions, summary] = await Promise.all([
+  const [subscriptions, summary, groups] = await Promise.all([
     getSubscriptions(),
     getSubscriptionSummary(),
+    getUserGroups(),
   ])
 
-  // จัดกลุ่มตามหมวดหมู่
+  // จัดกลุ่มตาม category
   const grouped = SUBSCRIPTION_CATEGORIES
     .map((cat) => ({
       ...cat,
-      items: subscriptions.filter((s: { category: string }) => s.category === cat.value),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      items: subscriptions.filter((s: any) => s.category === cat.value),
     }))
     .filter((g) => g.items.length > 0)
 
@@ -24,10 +27,10 @@ export default async function SubscriptionsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Subscriptions</h1>
+          <h1 className="text-2xl font-bold">สมัครสมาชิก</h1>
           <p className="text-muted-foreground">จัดการค่าบริการรายเดือน/รายปี</p>
         </div>
-        <SubscriptionForm />
+        <SubscriptionForm groups={groups} />
       </div>
 
       {/* Summary Cards */}
@@ -73,31 +76,28 @@ export default async function SubscriptionsPage() {
         </Card>
       </div>
 
-      {/* Subscription List by Category */}
-      {grouped.length > 0 ? (
+      {subscriptions.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Tv className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-1">ยังไม่มีรายการสมัครสมาชิก</h3>
+            <p className="text-muted-foreground">เพิ่มค่าบริการที่คุณสมัครใช้งาน เช่น Netflix, ChatGPT, Spotify</p>
+          </CardContent>
+        </Card>
+      ) : (
         <div className="space-y-6">
-          {grouped.map((group) => (
-            <div key={group.value}>
-              <h2 className="text-lg font-semibold mb-3">
-                {group.icon} {group.label}
-              </h2>
+          {grouped.map((cat) => (
+            <div key={cat.value}>
+              <h3 className="text-base font-semibold mb-3">{cat.icon} {cat.label}</h3>
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                {group.items.map((sub: any) => (
+                {cat.items.map((sub: any) => (
                   <SubscriptionCard key={sub.id} subscription={sub} />
                 ))}
               </div>
             </div>
           ))}
         </div>
-      ) : (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Tv className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-1">ยังไม่มี Subscription</h3>
-            <p className="text-muted-foreground">เพิ่มค่าบริการที่คุณสมัครใช้งาน เช่น Netflix, ChatGPT, Spotify</p>
-          </CardContent>
-        </Card>
       )}
     </div>
   )

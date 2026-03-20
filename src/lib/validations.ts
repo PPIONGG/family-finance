@@ -2,12 +2,12 @@ import { z } from 'zod'
 
 export const loginSchema = z.object({
   email: z.string().email('กรุณากรอกอีเมลที่ถูกต้อง'),
-  password: z.string().min(6, 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'),
+  password: z.string().min(8, 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร'),
 })
 
 export const registerSchema = z.object({
   email: z.string().email('กรุณากรอกอีเมลที่ถูกต้อง'),
-  password: z.string().min(6, 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'),
+  password: z.string().min(8, 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร'),
   confirmPassword: z.string(),
   displayName: z.string().min(1, 'กรุณากรอกชื่อที่แสดง'),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -29,19 +29,20 @@ export const installmentSchema = z.object({
   startDate: z.string().min(1, 'กรุณาเลือกวันที่เริ่มผ่อน'),
   dueDay: z.number().int().min(1).max(31, 'วันครบกำหนดต้องอยู่ระหว่าง 1-31'),
   notes: z.string().optional(),
+  groupId: z.string().uuid().nullable().optional(),
 })
 
 export const debtSchema = z.object({
   creditorName: z.string().min(1, 'กรุณากรอกชื่อเจ้าหนี้'),
-  debtorId: z.string().uuid('กรุณาเลือกผู้รับผิดชอบ'),
   totalAmount: z.number().positive('จำนวนเงินต้องมากกว่า 0'),
   interestRate: z.number().min(0).optional(),
   minimumPayment: z.number().min(0).optional(),
   dueDate: z.string().optional(),
   notes: z.string().optional(),
+  groupId: z.string().uuid().nullable().optional(),
 })
 
-export const familyGroupSchema = z.object({
+export const groupSchema = z.object({
   name: z.string().min(1, 'กรุณากรอกชื่อกลุ่ม'),
 })
 
@@ -60,5 +61,5 @@ export type LoginInput = z.infer<typeof loginSchema>
 export type RegisterInput = z.infer<typeof registerSchema>
 export type InstallmentInput = z.infer<typeof installmentSchema>
 export type DebtInput = z.infer<typeof debtSchema>
-export type FamilyGroupInput = z.infer<typeof familyGroupSchema>
+export type GroupInput = z.infer<typeof groupSchema>
 export type SubscriptionInput = z.infer<typeof subscriptionSchema>

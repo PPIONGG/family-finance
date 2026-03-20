@@ -62,7 +62,15 @@ export function EditInstallmentDialog({ installment }: EditInstallmentDialogProp
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => {
+      setOpen(v)
+      if (v) {
+        setName(installment.name)
+        setPlatform(installment.platform)
+        setDueDay(installment.dueDay)
+        setNotes(installment.notes || '')
+      }
+    }}>
       <DialogTrigger render={<Button variant="outline" size="sm" />}>
         <Pencil className="h-4 w-4 mr-1" />
         แก้ไข

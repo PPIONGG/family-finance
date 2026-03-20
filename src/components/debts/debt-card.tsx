@@ -24,7 +24,6 @@ interface DebtCardProps {
     minimumPayment: number | null
     dueDate: Date | string | null
     status: string
-    debtor: { displayName: string }
     notes: string | null
   }
 }
@@ -76,9 +75,6 @@ export function DebtCard({ debt }: DebtCardProps) {
           <div className="flex items-start justify-between">
             <div>
               <CardTitle className="text-base">{debt.creditorName}</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                ผู้รับผิดชอบ: {debt.debtor.displayName}
-              </p>
             </div>
             <div className="flex items-center gap-2">
               <StatusBadge status={debt.status as DebtStatus} />
@@ -87,6 +83,7 @@ export function DebtCard({ debt }: DebtCardProps) {
                 size="icon"
                 className="h-8 w-8 text-muted-foreground hover:text-red-600"
                 onClick={() => setShowDelete(true)}
+                aria-label="ลบรายการ"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
